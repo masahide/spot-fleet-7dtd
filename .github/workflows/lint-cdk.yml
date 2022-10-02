@@ -1,0 +1,40 @@
+name: lint cdk
+
+on: [pull_request]
+
+jobs:
+  node_test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: 'npm'
+      - name: Install Node Dependencies
+        run: npm ci
+        env:
+          CI: TRUE
+      - name: Check Code format
+        run: npm run format:check
+      - name: Test Code Linting
+        run: npm run lint
+      - name: Save Code Linting Report JSON
+        # npm script for ESLint
+        # eslint --output-file eslint_report.json --format json src
+        # See https://eslint.org/docs/user-guide/command-line-interface#options
+        run: npm run lint:report
+        # Continue to the next step even if this fails
+        continue-on-error: true
+      - name: Annotate Code Linting Results
+        uses: ataylorme/eslint-annotate-action@v2
+        with:
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          report-json: "eslint_report.json"
+      - name: Upload ESLint report
+        uses: actions/upload-artifact@v2
+        with:
+          name: eslint_report.json
+          path: eslint_report.json
