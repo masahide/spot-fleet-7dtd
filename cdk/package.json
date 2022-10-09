@@ -11,8 +11,9 @@
     "cdk": "cdk",
     "format": "prettier --write .",
     "format:check": "prettier -c .",
-    "lint": "eslint .",
-    "lint:report": "eslint --output-file eslint_report.json --format json ."
+    "lint": "eslint --ext .ts .",
+    "lint:fix": "eslint --fix --ext .ts .",
+    "lint:report": "eslint --output-file eslint_report.json --format json --ext .ts ."
   },
   "devDependencies": {
     "@types/jest": "^27.5.2",
