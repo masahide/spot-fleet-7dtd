@@ -1,4 +1,5 @@
 node_modules/
 package-lock.json
+eslint_report.json
 *.d.ts
 *.js
