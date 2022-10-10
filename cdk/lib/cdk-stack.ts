@@ -1,4 +1,5 @@
 import * as cdk from "aws-cdk-lib";
+import { Tags } from "aws-cdk-lib";
 import { Asset } from "aws-cdk-lib/aws-s3-assets";
 import { CfnOutput, aws_iam as iam, aws_ec2 as ec2 } from "aws-cdk-lib";
 import { Construct } from "constructs";
@@ -90,17 +91,49 @@ export class CdkStack extends cdk.Stack {
             "arn:aws:route53:::hostedzone/*",
           ],
         }),
+
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: ["ec2:DeleteSnapshot", "ec2:CreateSnapshot"],
+          resources: ["arn:aws:ec2:*::volume/*", "arn:aws:ec2:*::snapshot/*"],
+        }),
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: ["ec2:DescribeVolumes", "ec2:DescribeSnapshots"],
+          resources: ["arn:aws:ec2:*::volume/*", "arn:aws:ec2:*::snapshot/*"],
+        }),
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: [
+            "ec2:DetachVolume",
+            "ec2:AttachVolume",
+            "ec2:DeleteVolume",
+            "ec2:CreateVolume",
+          ],
+          resources: ["arn:aws:ec2:*::volume/*", "arn:aws:ec2:*::instance/*"],
+        }),
         new iam.PolicyStatement({
           effect: iam.Effect.ALLOW,
           actions: ["ec2:DisassociateAddress", "ec2:AssociateAddress"],
           resources: ["*"],
+        }),
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: ["ec2:ModifySpotFleetRequest"],
+          resources: [
+            "arn:aws:ec2:*::spot-fleet-request/*",
+            "arn:aws:ec2:*::subnet/*",
+            "arn:aws:ec2:*::launch-template/*",
+          ],
         }),
       ],
     });
     // IAM rule
     const fleetSpotRole = new iam.Role(this, "spotfleetRole", {
       managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName("service-role/AmazonEC2SpotFleetTaggingRole"),
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          "service-role/AmazonEC2SpotFleetTaggingRole"
+        ),
       ],
       assumedBy: new iam.ServicePrincipal("spotfleet.amazonaws.com"),
       path: "/",
@@ -118,19 +151,33 @@ export class CdkStack extends cdk.Stack {
 
     // ssh key pair
     const keyPair = new ec2.CfnKeyPair(this, "MyCfnKeyPair", {
-      keyName:`${this.stackName}KeyPair`,
+      keyName: `${this.stackName}KeyPair`,
       publicKeyMaterial: publicKeyMaterial,
     });
 
-    //const userDataScript = readFileSync('./lib/user-data.sh', 'utf8');
+    const asset = new Asset(this, "Asset", { path: "./scripts" });
+    //const userDataScript = readFileSync('.user-data.sh', 'utf8');
+    /*
     const setupCommands = ec2.UserData.forLinux();
-    const asset = new Asset(this, "Asset", { path: "./lib/user-data.sh" });
     const localPath = setupCommands.addS3DownloadCommand({
       bucket: asset.bucket,
-      bucketKey: asset.s3ObjectKey,
+      bucketKey: `asset.s3ObjectKey`,
     });
     setupCommands.addExecuteFileCommand({ filePath: localPath });
     asset.grantRead(ec2role);
+
+    const multipartUserData = new ec2.MultipartUserData();
+    // Execute the rest of setup
+    multipartUserData.addPart(ec2.MultipartBody.fromUserData(setupCommands));
+    */
+
+    ////
+    const setupCommands = ec2.UserData.forLinux();
+    setupCommands.addCommands(
+      `aws s3 cp s3://${asset.s3BucketName}/${asset.s3ObjectKey} /tmp/scripts.zip >> /var/tmp/setup`,
+      `unzip -d /var/lib/scripts /tmp/scripts.zip >>/var/tmp/setup`,
+      `bash /var/lib/scripts/user-data.sh`
+    );
 
     const multipartUserData = new ec2.MultipartUserData();
     // Execute the rest of setup
@@ -140,62 +187,60 @@ export class CdkStack extends cdk.Stack {
     const template = new ec2.LaunchTemplate(this, "template", {
       userData: multipartUserData,
       keyName: keyPair.keyName,
-      //machineImage: ec2.MachineImage.latestAmazonLinux(),
       machineImage: ec2.MachineImage.fromSsmParameter(
         "/aws/service/ami-amazon-linux-latest/al2022-ami-kernel-default-x86_64"
       ),
-      /*
-      machineImage: new ec2.AmazonLinuxImage({
-        generation: ec2.AmazonLinuxGeneration.AMAZON_LINUX_2022,
-        edition: ec2.AmazonLinuxEdition.STANDARD,
-        kernel: ec2.AmazonLinuxKernel
-        //virtualization: ec2.AmazonLinuxVirt.HVM,
-        //storage: ec2.AmazonLinuxStorage.GENERAL_PURPOSE,
-      }),
-      */
       launchTemplateName: launchTemplateName,
       securityGroup: mySG,
       role: ec2role,
     });
 
-    const subnets = vpc.publicSubnets.map((d): string => {return d.subnetId})
-    const cfnSpotFleet = new ec2.CfnSpotFleet(this, 'soptFleet', {
+    const subnets = vpc.publicSubnets.map((d): string => {
+      return d.subnetId;
+    });
+    const cfnSpotFleet = new ec2.CfnSpotFleet(this, "soptFleet", {
       spotFleetRequestConfigData: {
         iamFleetRole: fleetSpotRole.roleArn,
-        allocationStrategy: 'lowestPrice',
+        allocationStrategy: "lowestPrice",
         terminateInstancesWithExpiration: false,
         targetCapacity: 0,
-        type: 'maintain',
-        targetCapacityUnitType: 'units',
-        onDemandAllocationStrategy: 'lowestPrice',
+        type: "maintain",
+        targetCapacityUnitType: "units",
+        onDemandAllocationStrategy: "lowestPrice",
         launchTemplateConfigs: [
           {
             launchTemplateSpecification: {
               launchTemplateId: getString(template.launchTemplateId),
               version: template.latestVersionNumber,
             },
-            overrides: [{
-              subnetId: subnets.join(','),
-              instanceRequirements: {
-                vCpuCount: {
-                  max: 4,
-                  min: 2,
-                },
-                memoryMiB: {
-                  min: 7168,
-                  max: 16384,
+            overrides: [
+              {
+                subnetId: subnets.join(","),
+                instanceRequirements: {
+                  vCpuCount: {
+                    max: 4,
+                    min: 2,
+                  },
+                  memoryMiB: {
+                    min: 7168,
+                    max: 16384,
+                  },
                 },
               },
-            }],
-          }
+            ],
+          },
         ],
       },
     });
+    Tags.of(cfnSpotFleet).add("Name", `${this.stackName}-sfr`);
+    Tags.of(cfnSpotFleet).add("StackName", this.stackName);
 
     new CfnOutput(this, "keyPairName", { value: keyPair.keyName });
     new CfnOutput(this, "roleARN", { value: ec2role.roleArn });
     new CfnOutput(this, "SecurityGroupID", { value: mySG.securityGroupId });
-    new CfnOutput(this, "LaunchTemplateID", { value: getString(template.launchTemplateId) });
+    new CfnOutput(this, "LaunchTemplateID", {
+      value: getString(template.launchTemplateId),
+    });
     new CfnOutput(this, "LaunchTemplateVersion", {
       value: template.versionNumber,
     });
