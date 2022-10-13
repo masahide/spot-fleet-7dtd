@@ -6,13 +6,16 @@ import { Construct } from "constructs";
 // import { readFileSync } from "fs";
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
-const getString = (s: string | undefined): string => {
-  return s === undefined ? "" : s;
+const getString = (s: string | undefined, def: string): string => {
+  return s === undefined ? def : s;
 };
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
+
+    const svname = getString(process.env.SVNAME,`7dtd`)
+    const volsize = getString(process.env.VOLSIZE,`20`)
 
     // ssh public key
     const publicKeyMaterial = process.env.SSH_PUB_KEY;
@@ -43,7 +46,7 @@ export class CdkStack extends cdk.Stack {
       allowAllOutbound: true, // Can be set to false
     });
     mySG.addIngressRule(
-      ec2.Peer.ipv4(getString(process.env.MYIP)),
+      ec2.Peer.ipv4(getString(process.env.MYIP,``)),
       ec2.Port.tcp(22),
       "ssh access from home"
     );
@@ -176,7 +179,7 @@ export class CdkStack extends cdk.Stack {
     setupCommands.addCommands(
       `aws s3 cp s3://${asset.s3BucketName}/${asset.s3ObjectKey} /tmp/scripts.zip >> /var/tmp/setup`,
       `unzip -d /var/lib/scripts /tmp/scripts.zip >>/var/tmp/setup`,
-      `bash /var/lib/scripts/user-data.sh`
+      `bash /var/lib/scripts/user-data.sh ${svname} ${volsize}`
     );
 
     const multipartUserData = new ec2.MultipartUserData();
@@ -210,7 +213,7 @@ export class CdkStack extends cdk.Stack {
         launchTemplateConfigs: [
           {
             launchTemplateSpecification: {
-              launchTemplateId: getString(template.launchTemplateId),
+              launchTemplateId: getString(template.launchTemplateId,``),
               version: template.latestVersionNumber,
             },
             overrides: [
@@ -239,7 +242,7 @@ export class CdkStack extends cdk.Stack {
     new CfnOutput(this, "roleARN", { value: ec2role.roleArn });
     new CfnOutput(this, "SecurityGroupID", { value: mySG.securityGroupId });
     new CfnOutput(this, "LaunchTemplateID", {
-      value: getString(template.launchTemplateId),
+      value: getString(template.launchTemplateId,``),
     });
     new CfnOutput(this, "LaunchTemplateVersion", {
       value: template.versionNumber,

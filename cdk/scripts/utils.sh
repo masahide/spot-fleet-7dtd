@@ -1,39 +1,80 @@
 #!/bin/bash
 
-TOKEN=`curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"`
-AZ=$(curl -sH "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone)
-INSTANCEID=$(curl -sH "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
-NAME=spot7dtd
+#TOKEN=`curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"`
+#AZ=$(curl -sH "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone)
+#INSTANCEID=$(curl -sH "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
 
+. /var/tmp/aws_env
 
-echo AZ: $AZ
-echo INSTANCEID: $INSTANCEID
+# Get the latest snapshot
+_get_snapshot() {
+  snapshots=$(aws ec2 describe-snapshots --owner-ids self --query 'Snapshots[?(Tags[?Key==`'$SVNAME'`].Value)]')
+  latestsnapshot=$(echo $snapshots|jq 'max_by(.StartTime)|.SnapshotId' -r)
 
-init () {
-  set -ex
-  createvolume=$(aws ec2 create-volume --volume-type gp3 --size 20 --availability-zone $AZ --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value='$NAME'}]')
+  #[[ "null" == "$latestsnapshot" ]] &&  return
+  echo $latestsnapshot
+}
+
+# mount snapshot
+_mount_snapshot() {
+  snapshot=$1
+  volume=$(aws ec2 create-volume --volume-type gp3 --availability-zone $AZ --snapshot-id $snapshot --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Name,Value='${SVNAME}-${time}'},{Key='$SVNAME',Value=true}]')
+  vid=$(echo "$volume" |jq -r '.VolumeId')
+  echo $vid >/var/tmp/aws_vid
+  echo volumeID: $vid
+  aws ec2 wait volume-available --volume-ids $vid
+  aws ec2 attach-volume --volume-id $vid --instance-id $INSTANCEID --device /dev/sdf
+  sleep 5
+  mount /dev/sdf /mnt
+}
+
+# Create new volume and mount
+_create_new_volume() {
+  time=$(date "+%Y%m%d-%H%M%S")
+  createvolume=$(aws ec2 create-volume --volume-type gp3 --size $VOLSIZE --availability-zone $AZ --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Name,Value='${SVNAME}-${time}'},{Key='$SVNAME',Value=true}]')
   vid=$(echo "$createvolume" |jq -r '.VolumeId')
   echo $vid >/var/tmp/aws_vid
   echo volumeID: $vid
   aws ec2 wait volume-available --volume-ids $vid
   aws ec2 attach-volume --volume-id $vid --instance-id $INSTANCEID --device /dev/sdf
   sleep 5
-  sudo mkfs /dev/sdf
+  sudo mkfs.xfs /dev/sdf
   mount /dev/sdf /mnt
 }
 
 
-del() {
-  set -ex
+# Unmount to create a snapshot and delete volume
+create_snapshot() {
   vid=$(cat /var/tmp/aws_vid)
   ## detach-volume
-  umount /mnt
+  umount -f /mnt
   aws ec2 detach-volume --volume-id $vid
   # aws ec2 detach-volume --volume-id $vid --force
   ## create-snapshot
   time=$(date "+%Y%m%d-%H%M%S")
-  aws ec2 create-snapshot --volume-id $vid --description "$Name backup $time" --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Name,Value='${NAME}-${time}'},{Key='$NAME',Value=true}]'
+  aws ec2 create-snapshot --volume-id $vid --description "$Name backup $time" --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Name,Value='${SVNAME}-${time}'},{Key='$SVNAME',Value=true}]'
   sleep 5
   ## delete-volume
   aws ec2 delete-volume --volume-id $vid
 }
+
+
+# Delete old ones, leaving 3 generations
+delete_old_snapshot() {
+  snapshots=$(aws ec2 describe-snapshots --owner-ids self --query 'Snapshots[?(Tags[?Key==`'$SVNAME'`].Value)]')
+  rmvids=$(echo $snapshots|jq 'sort_by(.StartTime)|.[:-3]|.[].SnapshotId' -r)
+  for vid in $rmvids;do
+    aws ec2 delete-volume --volume-id $vid
+  done
+}
+
+mount_latest() {
+  snapshot=$(_get_snapshot)
+  case "$snapshot" in
+    "null")
+      _create_new_volume;;
+    *)
+      _mount_snapshot $snapshot;;
+  esac
+}
+
