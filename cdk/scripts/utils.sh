@@ -43,6 +43,14 @@ _create_new_volume() {
   mount /dev/sdf /mnt
 }
 
+# Delete old ones, leaving 3 generations
+_delete_old_snapshot() {
+  snapshots=$(aws ec2 describe-snapshots --owner-ids self --query 'Snapshots[?(Tags[?Key==`'$SVNAME'`].Value)]')
+  rmsids=$(echo $snapshots|jq 'sort_by(.StartTime)|.[:-3]|.[].SnapshotId' -r)
+  for sid in $rmsids;do
+    aws ec2 delete-snapshot --snapshot-id $sid
+  done
+}
 
 # Unmount to create a snapshot and delete volume
 create_snapshot() {
@@ -58,17 +66,9 @@ create_snapshot() {
   ## delete-volume
   aws ec2 wait volume-available --volume-ids $vid
   aws ec2 delete-volume --volume-id $vid
+  _delete_old_snapshot
 }
 
-
-# Delete old ones, leaving 3 generations
-delete_old_snapshot() {
-  snapshots=$(aws ec2 describe-snapshots --owner-ids self --query 'Snapshots[?(Tags[?Key==`'$SVNAME'`].Value)]')
-  rmvids=$(echo $snapshots|jq 'sort_by(.StartTime)|.[:-3]|.[].SnapshotId' -r)
-  for vid in $rmvids;do
-    aws ec2 delete-volume --volume-id $vid
-  done
-}
 
 mount_latest() {
   snapshot=$(_get_snapshot)
