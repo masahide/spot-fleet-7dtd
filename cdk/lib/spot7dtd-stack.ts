@@ -22,21 +22,6 @@ export class spot7dtdStack extends cdk.Stack {
     super(scope, id, props);
 
     const asset = new Asset(this, "Asset", { path: "./scripts" });
-    //const userDataScript = readFileSync('.user-data.sh', 'utf8');
-    /*
-    const setupCommands = ec2.UserData.forLinux();
-    const localPath = setupCommands.addS3DownloadCommand({
-      bucket: asset.bucket,
-      bucketKey: `asset.s3ObjectKey`,
-    });
-    setupCommands.addExecuteFileCommand({ filePath: localPath });
-    asset.grantRead(ec2role);
-
-    const multipartUserData = new ec2.MultipartUserData();
-    // Execute the rest of setup
-    multipartUserData.addPart(ec2.MultipartBody.fromUserData(setupCommands));
-    */
-
     ////
     const setupCommands = ec2.UserData.forLinux();
     setupCommands.addCommands(
