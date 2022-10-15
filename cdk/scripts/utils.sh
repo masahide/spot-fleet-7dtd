@@ -18,7 +18,8 @@ _get_snapshot() {
 # mount snapshot
 _mount_snapshot() {
   snapshot=$1
-  volume=$(aws ec2 create-volume --volume-type gp3 --availability-zone $AZ --snapshot-id $snapshot --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Name,Value='${SVNAME}-${time}'},{Key='$SVNAME',Value=true}]')
+  time=$(date "+%Y%m%d-%H%M%S")
+  volume=$(aws ec2 create-volume --volume-type gp3 --availability-zone $AZ --snapshot-id $snapshot --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value='${SVNAME}-${time}'},{Key='$SVNAME',Value=true}]')
   vid=$(echo "$volume" |jq -r '.VolumeId')
   echo $vid >/var/tmp/aws_vid
   echo volumeID: $vid
@@ -31,7 +32,7 @@ _mount_snapshot() {
 # Create new volume and mount
 _create_new_volume() {
   time=$(date "+%Y%m%d-%H%M%S")
-  createvolume=$(aws ec2 create-volume --volume-type gp3 --size $VOLSIZE --availability-zone $AZ --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Name,Value='${SVNAME}-${time}'},{Key='$SVNAME',Value=true}]')
+  createvolume=$(aws ec2 create-volume --volume-type gp3 --size $VOLSIZE --availability-zone $AZ --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value='${SVNAME}-${time}'},{Key='$SVNAME',Value=true}]')
   vid=$(echo "$createvolume" |jq -r '.VolumeId')
   echo $vid >/var/tmp/aws_vid
   echo volumeID: $vid
@@ -53,8 +54,9 @@ create_snapshot() {
   ## create-snapshot
   time=$(date "+%Y%m%d-%H%M%S")
   aws ec2 create-snapshot --volume-id $vid --description "$Name backup $time" --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Name,Value='${SVNAME}-${time}'},{Key='$SVNAME',Value=true}]'
-  sleep 5
+  sleep 2
   ## delete-volume
+  aws ec2 wait volume-available --volume-ids $vid
   aws ec2 delete-volume --volume-id $vid
 }
 
