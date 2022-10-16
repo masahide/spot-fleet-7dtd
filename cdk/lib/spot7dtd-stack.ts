@@ -1,7 +1,7 @@
 import * as cdk from "aws-cdk-lib";
-import { Tags, StackProps } from "aws-cdk-lib";
+import { StackProps } from "aws-cdk-lib";
 import { Asset } from "aws-cdk-lib/aws-s3-assets";
-import { CfnOutput, aws_ec2 as ec2 } from "aws-cdk-lib";
+import { CfnOutput, aws_ec2 as ec2, aws_ssm as ssm } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { spot7dtdBase } from "./base-stack";
 // import { readFileSync } from "fs";
@@ -22,13 +22,13 @@ export class spot7dtdStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: spot7dtdrops) {
     super(scope, id, props);
 
-    const asset = new Asset(this, "Asset", { path: "./scripts" });
+    const asset = new Asset(this, "Asset", { path: "../files" });
     ////
     const setupCommands = ec2.UserData.forLinux();
     setupCommands.addCommands(
-      `aws s3 cp s3://${asset.s3BucketName}/${asset.s3ObjectKey} /tmp/scripts.zip >> /var/tmp/setup`,
-      `unzip -d /var/lib/scripts /tmp/scripts.zip >>/var/tmp/setup`,
-      `bash /var/lib/scripts/user-data.sh ${props.serverName} ${props.volumeSize} ${props.snapshotGen}`
+      `aws s3 cp s3://${asset.s3BucketName}/${asset.s3ObjectKey} /tmp/files.zip >> /var/tmp/setup`,
+      `unzip -d /var/lib/ /tmp/files.zip >>/var/tmp/setup`,
+      `bash /var/lib/scripts/user-data.sh ${this.stackName} ${props.serverName} ${props.volumeSize} ${props.snapshotGen}`
     );
 
     const multipartUserData = new ec2.MultipartUserData();
@@ -81,22 +81,20 @@ export class spot7dtdStack extends cdk.Stack {
         ],
       },
     });
-    Tags.of(cfnSpotFleet).add("Name", `${this.stackName}-sfr`);
-    Tags.of(cfnSpotFleet).add("StackName", this.stackName);
 
-    /*
-    new CfnOutput(this, "keyPairName", { value: keyPair.keyName });
-    new CfnOutput(this, "roleARN", { value: ec2role.roleArn });
-    new CfnOutput(this, "SecurityGroupID", { value: mySG.securityGroupId });
-    */
-    new CfnOutput(this, "LaunchTemplateID", {
-      value: getString(template.launchTemplateId, ``),
+    const param = new ssm.StringParameter(this, "Parameter", {
+      allowedPattern: ".*",
+      description: "spot-fleet request ID",
+      parameterName: `/${this.stackName}/${props.serverName}/sfr-id`,
+      stringValue: cfnSpotFleet.attrId,
+      tier: ssm.ParameterTier.STANDARD,
     });
-    new CfnOutput(this, "LaunchTemplateVersion", {
-      value: template.versionNumber,
-    });
+
     new CfnOutput(this, "cfnSpotFleetID", {
       value: cfnSpotFleet.attrId,
+    });
+    new CfnOutput(this, "ssmParameterName", {
+      value: param.parameterName,
     });
   }
 }

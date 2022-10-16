@@ -1,11 +1,16 @@
 import * as cdk from "aws-cdk-lib";
-import { StackProps } from "aws-cdk-lib";
-import { aws_iam as iam, aws_ec2 as ec2 } from "aws-cdk-lib";
+import {
+  aws_iam as iam,
+  aws_ec2 as ec2,
+  Tags,
+  StackProps,
+} from "aws-cdk-lib";
 import { Construct } from "constructs";
 // import { readFileSync } from "fs";
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export interface spot7dtdBaseprops extends StackProps {
+  myIP: string;
   sshPublicKey: string;
 }
 
@@ -17,10 +22,6 @@ export interface spot7dtdBase {
   keyPairName: string;
   subnets: string[];
 }
-
-const getString = (s: string | undefined, def: string): string => {
-  return s === undefined ? def : s;
-};
 
 export class spot7dtdBaseStack extends cdk.Stack {
   public readonly base: spot7dtdBase;
@@ -44,13 +45,13 @@ export class spot7dtdBaseStack extends cdk.Stack {
     });
 
     // SecurityGroup
-    const securityGroup = new ec2.SecurityGroup(this, "SecurityGroup", {
+    const securityGroup = new ec2.SecurityGroup(this, "SG", {
       vpc,
       description: "Allow ssh access to ec2 instances",
       allowAllOutbound: true, // Can be set to false
     });
     securityGroup.addIngressRule(
-      ec2.Peer.ipv4(getString(process.env.MYIP, ``)),
+      ec2.Peer.ipv4(props.myIP),
       ec2.Port.tcp(22),
       "ssh access from home"
     );
@@ -80,6 +81,7 @@ export class spot7dtdBaseStack extends cdk.Stack {
       ec2.Port.tcp(443),
       "https"
     );
+    Tags.of(securityGroup).add("Name", `${this.stackName}SG`);
 
     // IAM policy
     const policy = new iam.ManagedPolicy(this, "EC2Policy", {
@@ -105,7 +107,7 @@ export class spot7dtdBaseStack extends cdk.Stack {
           resources: [
             "arn:aws:sqs:*:*:DiscordBotStack-Queue*",
             "arn:aws:kms:*:*:key/CMK",
-            "arn:aws:ssm:*:*:parameter/7dtd*",
+            "arn:aws:ssm:*:*:parameter/*",
             "arn:aws:dynamodb:*:*:table/DiscordBotStack-Table*",
             "arn:aws:route53:::hostedzone/*",
           ],

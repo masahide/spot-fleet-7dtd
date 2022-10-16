@@ -1,9 +1,6 @@
 ## setup enviroment
 
-```bash
-export SSH_PUB_KEY=$(ssh-add -L|head -n 1)
-export MYIP="$(curl inet-ip.info)/32"
-```
+vim bin/cdk.ts
 
 ## build & deploy
 
