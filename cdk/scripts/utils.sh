@@ -8,7 +8,8 @@
 
 # Get the latest snapshot
 _get_snapshot() {
-  snapshots=$(aws ec2 describe-snapshots --owner-ids self --query 'Snapshots[?(Tags[?Key==`'$SVNAME'`].Value)]')
+  snapshots=$(aws ec2 describe-snapshots --owner-ids self \
+    --query 'Snapshots[?(Tags[?Key==`'$SVNAME'`].Value)]')
   latestsnapshot=$(echo $snapshots|jq 'max_by(.StartTime)|.SnapshotId' -r)
 
   #[[ "null" == "$latestsnapshot" ]] &&  return
@@ -19,7 +20,10 @@ _get_snapshot() {
 _mount_snapshot() {
   snapshot=$1
   time=$(date "+%Y%m%d-%H%M%S")
-  volume=$(aws ec2 create-volume --volume-type gp3 --availability-zone $AZ --snapshot-id $snapshot --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value='${SVNAME}-${time}'},{Key='$SVNAME',Value=true}]')
+  volume=$(aws ec2 create-volume --volume-type gp3 \
+    --availability-zone $AZ \
+    --snapshot-id $snapshot \
+    --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value='${SVNAME}-${time}'},{Key='$SVNAME',Value=true}]')
   vid=$(echo "$volume" |jq -r '.VolumeId')
   echo $vid >/var/tmp/aws_vid
   echo volumeID: $vid
@@ -32,7 +36,10 @@ _mount_snapshot() {
 # Create new volume and mount
 _create_new_volume() {
   time=$(date "+%Y%m%d-%H%M%S")
-  createvolume=$(aws ec2 create-volume --volume-type gp3 --size $VOLSIZE --availability-zone $AZ --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value='${SVNAME}-${time}'},{Key='$SVNAME',Value=true}]')
+  createvolume=$(aws ec2 create-volume --volume-type gp3 \
+    --size $VOLSIZE \
+    --availability-zone $AZ \
+    --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value='${SVNAME}-${time}'},{Key='$SVNAME',Value=true}]')
   vid=$(echo "$createvolume" |jq -r '.VolumeId')
   echo $vid >/var/tmp/aws_vid
   echo volumeID: $vid
@@ -43,10 +50,11 @@ _create_new_volume() {
   mount /dev/sdf /mnt
 }
 
-# Delete old ones, leaving 3 generations
+# Delete old ones, leaving $SNAPSHOTGEN generations
 _delete_old_snapshot() {
-  snapshots=$(aws ec2 describe-snapshots --owner-ids self --query 'Snapshots[?(Tags[?Key==`'$SVNAME'`].Value)]')
-  rmsids=$(echo $snapshots|jq 'sort_by(.StartTime)|.[:-3]|.[].SnapshotId' -r)
+  snapshots=$(aws ec2 describe-snapshots --owner-ids self \
+    --query 'Snapshots[?(Tags[?Key==`'$SVNAME'`].Value)]')
+  rmsids=$(echo $snapshots|jq 'sort_by(.StartTime)|.[:-'$SNAPSHOTGEN']|.[].SnapshotId' -r)
   for sid in $rmsids;do
     aws ec2 delete-snapshot --snapshot-id $sid
   done
@@ -61,7 +69,9 @@ create_snapshot() {
   # aws ec2 detach-volume --volume-id $vid --force
   ## create-snapshot
   time=$(date "+%Y%m%d-%H%M%S")
-  aws ec2 create-snapshot --volume-id $vid --description "$Name backup $time" --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Name,Value='${SVNAME}-${time}'},{Key='$SVNAME',Value=true}]'
+  aws ec2 create-snapshot --volume-id $vid \
+    --description "$Name backup $time" \
+    --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Name,Value='${SVNAME}-${time}'},{Key='$SVNAME',Value=true}]'
   sleep 2
   ## delete-volume
   aws ec2 wait volume-available --volume-ids $vid

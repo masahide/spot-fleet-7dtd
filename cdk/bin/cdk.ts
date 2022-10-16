@@ -22,7 +22,8 @@ const baseStack = new spot7dtdBaseStack(app, "spot7dtdBase", {
 
 new spot7dtdStack(app, "spot7dtd", {
   env: env,
+  base: baseStack.base,
   serverName: "7dtd",
   volumeSize: 20,
-  base: baseStack.base,
+  snapshotGen: 3,
 });

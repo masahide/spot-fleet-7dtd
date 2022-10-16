@@ -10,6 +10,7 @@ import { spot7dtdBase } from "./base-stack";
 export interface spot7dtdrops extends StackProps {
   serverName: string;
   volumeSize: number;
+  snapshotGen: number;
   base: spot7dtdBase;
 }
 
@@ -27,7 +28,7 @@ export class spot7dtdStack extends cdk.Stack {
     setupCommands.addCommands(
       `aws s3 cp s3://${asset.s3BucketName}/${asset.s3ObjectKey} /tmp/scripts.zip >> /var/tmp/setup`,
       `unzip -d /var/lib/scripts /tmp/scripts.zip >>/var/tmp/setup`,
-      `bash /var/lib/scripts/user-data.sh ${props.serverName} ${props.volumeSize}`
+      `bash /var/lib/scripts/user-data.sh ${props.serverName} ${props.volumeSize} ${props.snapshotGen}`
     );
 
     const multipartUserData = new ec2.MultipartUserData();
