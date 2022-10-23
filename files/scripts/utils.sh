@@ -92,6 +92,6 @@ mount_latest() {
 
 
 stop_server() {
-    sfrid=$(aws ssm get-parameter --name "/${STACKNAME}/${SVNAME}/sfr-id"|jq .Parameter.Value -r)
+    sfrid=$(aws ssm get-parameter --name "/${PREFIX}/${STACKNAME}/sfrID"|jq .Parameter.Value -r)
     aws ec2 modify-spot-fleet-request --spot-fleet-request-id $sfrid --target-capacity 0
 }

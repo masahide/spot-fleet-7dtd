@@ -1,10 +1,5 @@
 import * as cdk from "aws-cdk-lib";
-import {
-  aws_iam as iam,
-  aws_ec2 as ec2,
-  Tags,
-  StackProps,
-} from "aws-cdk-lib";
+import { aws_iam as iam, aws_ec2 as ec2, Tags, StackProps } from "aws-cdk-lib";
 import { Construct } from "constructs";
 // import { readFileSync } from "fs";
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
@@ -12,6 +7,7 @@ import { Construct } from "constructs";
 export interface spot7dtdBaseprops extends StackProps {
   myIP: string;
   sshPublicKey: string;
+  prefix: string;
 }
 
 export interface spot7dtdBase {
@@ -107,7 +103,7 @@ export class spot7dtdBaseStack extends cdk.Stack {
           resources: [
             "arn:aws:sqs:*:*:DiscordBotStack-Queue*",
             "arn:aws:kms:*:*:key/CMK",
-            "arn:aws:ssm:*:*:parameter/*",
+            `arn:aws:ssm:*:*:parameter/${props.prefix}/*`,
             "arn:aws:dynamodb:*:*:table/DiscordBotStack-Table*",
             "arn:aws:route53:::hostedzone/*",
           ],

@@ -15,8 +15,8 @@ set -ex
 setup > /var/tmp/userdata.log 2>&1
 set +ex
 
-STACKNAME=$1
-SVNAME=$2
+PREFIX=$1
+STACKNAME=$2
 VOLSIZE=$3
 SNAPSHOTGEN=$4
 TOKEN=`curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"`
@@ -25,8 +25,9 @@ INSTANCEID=$(curl -sH "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/
 REGION=$(echo $AZ | sed -e 's/.$//')
 
 cat << EOS > /var/tmp/aws_env
+PREFIX=$PREFIX
 STACKNAME=$STACKNAME
-SVNAME=$SVNAME
+SVNAME=$STACKNAME
 VOLSIZE=$VOLSIZE
 SNAPSHOTGEN=$SNAPSHOTGEN
 AZ=$AZ

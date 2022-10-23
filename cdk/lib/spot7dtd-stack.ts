@@ -8,9 +8,12 @@ import { spot7dtdBase } from "./base-stack";
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export interface spot7dtdrops extends StackProps {
-  serverName: string;
+  prefix: string;
   volumeSize: number;
   snapshotGen: number;
+  route53domainName: string;
+  route53hostZone: string;
+  discordChannelID: string;
   base: spot7dtdBase;
 }
 
@@ -28,7 +31,7 @@ export class spot7dtdStack extends cdk.Stack {
     setupCommands.addCommands(
       `aws s3 cp s3://${asset.s3BucketName}/${asset.s3ObjectKey} /tmp/files.zip >> /var/tmp/setup`,
       `unzip -d /var/lib/ /tmp/files.zip >>/var/tmp/setup`,
-      `bash /var/lib/scripts/user-data.sh ${this.stackName} ${props.serverName} ${props.volumeSize} ${props.snapshotGen}`
+      `bash /var/lib/scripts/user-data.sh ${props.prefix} ${this.stackName} ${props.volumeSize} ${props.snapshotGen}`
     );
 
     const multipartUserData = new ec2.MultipartUserData();
@@ -82,19 +85,31 @@ export class spot7dtdStack extends cdk.Stack {
       },
     });
 
-    const param = new ssm.StringParameter(this, "Parameter", {
-      allowedPattern: ".*",
-      description: "spot-fleet request ID",
-      parameterName: `/${this.stackName}/${props.serverName}/sfr-id`,
-      stringValue: cfnSpotFleet.attrId,
-      tier: ssm.ParameterTier.STANDARD,
+    const params = [
+      { key: "sfrID", value: cfnSpotFleet.attrId },
+      { key: "volumeSize", value: `${props.volumeSize}` },
+      { key: "snapshotGen", value: `${props.snapshotGen}` },
+      { key: "maintenance", value: `false` },
+      { key: "discordChannelID", value: props.discordChannelID },
+      { key: "route53domainName", value: props.route53domainName },
+      { key: "route53hostZone", value: props.route53hostZone },
+    ].map((kv) => {
+      return {
+        kv: kv,
+        param: new ssm.StringParameter(this, `${kv.key}`, {
+          allowedPattern: ".*",
+          description: `${kv.key}`,
+          parameterName: `/${props.prefix}/${this.stackName}/${kv.key}`,
+          stringValue: kv.value,
+          tier: ssm.ParameterTier.STANDARD,
+        }),
+      };
     });
 
-    new CfnOutput(this, "cfnSpotFleetID", {
-      value: cfnSpotFleet.attrId,
-    });
-    new CfnOutput(this, "ssmParameterName", {
-      value: param.parameterName,
-    });
+    for (const i in params) {
+      new CfnOutput(this, `key${params[i].kv.key}`, {
+        value: params[i].param.stringValue,
+      });
+    }
   }
 }

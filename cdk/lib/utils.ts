@@ -1,7 +1,7 @@
 import { execSync } from "child_process";
 
 export const getMyIP = (): string =>
-  `${execSync("curl inet-ip.info").toString().replace(/\r?\n/g, "")}/32`;
+  `${execSync("curl -s inet-ip.info").toString().replace(/\r?\n/g, "")}/32`;
 
 export const sshPublicKey = (): string => {
   const pubkey = process.env.SSH_PUB_KEY;
