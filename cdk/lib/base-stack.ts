@@ -132,9 +132,9 @@ export class spot7dtdBaseStack extends cdk.Stack {
           effect: iam.Effect.ALLOW,
           actions: ["ec2:ModifySpotFleetRequest"],
           resources: [
-            "arn:aws:ec2:*::spot-fleet-request/*",
-            "arn:aws:ec2:*::subnet/*",
-            "arn:aws:ec2:*::launch-template/*",
+            "arn:aws:ec2:*:*:launch-template/*",
+            "arn:aws:ec2:*:*:spot-fleet-request/*",
+            "arn:aws:ec2:*:*:subnet/*",
           ],
         }),
       ],
@@ -154,6 +154,9 @@ export class spot7dtdBaseStack extends cdk.Stack {
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonS3FullAccess"),
         iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonEC2ReadOnlyAccess"),
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          "service-role/AmazonEC2RoleforSSM"
+        ),
         policy,
       ],
       assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),

@@ -1,15 +1,11 @@
 #!/bin/bash
 
-#TOKEN=`curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"`
-#AZ=$(curl -sH "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone)
-#INSTANCEID=$(curl -sH "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
-
-. /var/tmp/aws_env
+#. /var/tmp/aws_env
 
 # Get the latest snapshot
 _get_snapshot() {
   snapshots=$(aws ec2 describe-snapshots --owner-ids self \
-    --query 'Snapshots[?(Tags[?Key==`'$SVNAME'`].Value)]')
+    --query 'Snapshots[?(Tags[?Key==`'$STACKNAME'`].Value)]')
   latestsnapshot=$(echo $snapshots|jq 'max_by(.StartTime)|.SnapshotId' -r)
 
   #[[ "null" == "$latestsnapshot" ]] &&  return
@@ -23,7 +19,7 @@ _mount_snapshot() {
   volume=$(aws ec2 create-volume --volume-type gp3 \
     --availability-zone $AZ \
     --snapshot-id $snapshot \
-    --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value='${SVNAME}-${time}'},{Key='$SVNAME',Value=true}]')
+    --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value='${STACKNAME}-${time}'},{Key='$STACKNAME',Value=true}]')
   vid=$(echo "$volume" |jq -r '.VolumeId')
   echo $vid >/var/tmp/aws_vid
   echo volumeID: $vid
@@ -39,7 +35,7 @@ _create_new_volume() {
   createvolume=$(aws ec2 create-volume --volume-type gp3 \
     --size $VOLSIZE \
     --availability-zone $AZ \
-    --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value='${SVNAME}-${time}'},{Key='$SVNAME',Value=true}]')
+    --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value='${STACKNAME}-${time}'},{Key='$STACKNAME',Value=true}]')
   vid=$(echo "$createvolume" |jq -r '.VolumeId')
   echo $vid >/var/tmp/aws_vid
   echo volumeID: $vid
@@ -53,11 +49,15 @@ _create_new_volume() {
 # Delete old ones, leaving $SNAPSHOTGEN generations
 _delete_old_snapshot() {
   snapshots=$(aws ec2 describe-snapshots --owner-ids self \
-    --query 'Snapshots[?(Tags[?Key==`'$SVNAME'`].Value)]')
+    --query 'Snapshots[?(Tags[?Key==`'$STACKNAME'`].Value)]')
   rmsids=$(echo $snapshots|jq 'sort_by(.StartTime)|.[:-'$SNAPSHOTGEN']|.[].SnapshotId' -r)
   for sid in $rmsids;do
     aws ec2 delete-snapshot --snapshot-id $sid
   done
+}
+
+get_ssm_value() {
+    aws ssm get-parameter --name "${SSMPATH}/${1}" --with-decryption|jq .Parameter.Value -r
 }
 
 # Unmount to create a snapshot and delete volume
@@ -71,14 +71,13 @@ create_snapshot() {
   time=$(date "+%Y%m%d-%H%M%S")
   aws ec2 create-snapshot --volume-id $vid \
     --description "$Name backup $time" \
-    --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Name,Value='${SVNAME}-${time}'},{Key='$SVNAME',Value=true}]'
+    --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Name,Value='${STACKNAME}-${time}'},{Key='$STACKNAME',Value=true}]'
   sleep 2
   ## delete-volume
   aws ec2 wait volume-available --volume-ids $vid
   aws ec2 delete-volume --volume-id $vid
   _delete_old_snapshot
 }
-
 
 mount_latest() {
   snapshot=$(_get_snapshot)
@@ -90,8 +89,97 @@ mount_latest() {
   esac
 }
 
+##      { key: "volumeSize", value: `${props.volumeSize}` },
+##      { key: "snapshotGen", value: `${props.snapshotGen}` },
+##      { key: "maintenance", value: `false` },
+##      { key: "discordChannelID", value: props.discordChannelID },
+##      { key: "route53domainName", value: props.route53domainName },
+##      { key: "route53hostZone", value: props.route53hostZone },
 
 stop_server() {
-    sfrid=$(aws ssm get-parameter --name "/${PREFIX}/${STACKNAME}/sfrID"|jq .Parameter.Value -r)
+    sfrid=$(get_ssm_value sfrID)
     aws ec2 modify-spot-fleet-request --spot-fleet-request-id $sfrid --target-capacity 0
+}
+
+start_server() {
+    sfrid=$(get_ssm_value sfrID)
+    aws ec2 modify-spot-fleet-request --spot-fleet-request-id $sfrid --target-capacity 1
+}
+
+
+start_game() {
+    docker-compose -f /var/lib/config/docker-compose.yml up -d
+}
+stop_game() {
+    docker-compose -f /var/lib/config/docker-compose.yml down
+}
+
+stop_backup_shutdown() {
+    stop_game
+    sleep 3
+    create_snapshot
+    sleep 3
+    stop_server
+    sleep 3
+    /usr/sbin/shutdown -h now
+}
+
+
+
+upsert_domain () {
+    DOMAIN_NAME=$(get_ssm_value route53domainName)
+    HOST_ZONE_ID=$(get_ssm_value route53hostZone)
+	RECORD='{
+    "Comment": "UPSERT '${DOMAIN_NAME}'",
+    "Changes": [{
+    "Action": "UPSERT",
+	"ResourceRecordSet": {
+	    "Name": "'${DOMAIN_NAME}'",
+	    "Type": "A",
+	    "TTL": 5,
+	    "ResourceRecords": [{ "Value": "'${IPADDRESS}'"}]
+}}]}'
+	aws route53 change-resource-record-sets \
+		--hosted-zone-id ${HOST_ZONE_ID} \
+		--change-batch \
+		file://<(echo ${RECORD})
+}
+
+
+post_discord () {
+    [[ $(get_ssm_value maintenance) -eq true ]] && return
+    DISCORD_CHANNEL_ID=$(get_ssm_value discordChannelID)
+    BOT_TOKEN=$(get_ssm_value discordBotToken)
+	URL=https://discordapp.com/api/channels/${DISCORD_CHANNEL_ID}/messages 
+
+	echo '{
+  "content": "'${CONTENT}'",
+  "tts": false
+}' \
+	|curl -X POST -H "Content-Type: application/json" \
+	-H "Authorization: Bot ${BOT_TOKEN}" \
+	${URL} \
+	-d @- 
+}
+
+post_discord_response () {
+    [[ $(get_ssm_value maintenance) -eq true ]] && return
+    DISCORD_CHANNEL_ID=$(get_ssm_value discordChannelID)
+    BOT_TOKEN=$(get_ssm_value discordBotToken)
+	json=/tmp/7dtd_executer.data.json
+	[[ -f $json ]] && [[ $(date "+%s") -le $(jq -r '.["ttl"]' $json) ]] && URL=$(jq -r '.["url"]' $json)
+	[[ -z $URL ]] && URL=https://discordapp.com/api/channels/${DISCORD_CHANNEL_ID}/messages 
+
+	echo '{
+  "content": "'${CONTENT}'",
+  "tts": false,
+  "embed": {
+    "title": "'${TITLE}'",
+    "description": "'${DESCRIPTION}'"
+  }
+}' \
+	|curl -X POST -H "Content-Type: application/json" \
+	-H "Authorization: Bot ${BOT_TOKEN}" \
+	${URL} \
+	-d @- 
 }
