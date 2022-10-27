@@ -22,9 +22,6 @@ sleep $TIME
 [[ $(get_ssm_value maintenance) -eq true ]] && return
 [[ "$(players)" -eq "0" ]]  || exit 0
 
-${SCRIPT_DIR}/expect/shutdown.sh
-docker-compose -f /var/lib/config/docker-compose.yml down
-create_snapshot
 CONTENT="サーバーを停止しました"
 post_discord_response
 
