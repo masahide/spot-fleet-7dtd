@@ -147,7 +147,7 @@ upsert_domain () {
 
 
 post_discord () {
-    [[ $(get_ssm_value maintenance) -eq true ]] && return
+    [[ $(get_ssm_value maintenance) == true ]] && return
     DISCORD_CHANNEL_ID=$(get_ssm_value discordChannelID)
     BOT_TOKEN=$(get_ssm_value discordBotToken)
 	URL=https://discordapp.com/api/channels/${DISCORD_CHANNEL_ID}/messages 
@@ -163,7 +163,7 @@ post_discord () {
 }
 
 post_discord_response () {
-    [[ $(get_ssm_value maintenance) -eq true ]] && return
+    [[ $(get_ssm_value maintenance) == true ]] && return
     DISCORD_CHANNEL_ID=$(get_ssm_value discordChannelID)
     BOT_TOKEN=$(get_ssm_value discordBotToken)
 	json=/tmp/7dtd_executer.data.json
