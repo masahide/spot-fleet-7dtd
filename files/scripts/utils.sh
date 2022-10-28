@@ -127,7 +127,7 @@ stop_backup_shutdown() {
 
 
 upsert_domain () {
-    DOMAIN_NAME=$(get_ssm_value route53domainName)
+    DOMAIN_NAME=${STACKNAME}.$(get_ssm_value route53domainName)
     HOST_ZONE_ID=$(get_ssm_value route53hostZone)
 	RECORD='{
     "Comment": "UPSERT '${DOMAIN_NAME}'",
