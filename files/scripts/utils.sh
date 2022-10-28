@@ -89,13 +89,6 @@ mount_latest() {
   esac
 }
 
-##      { key: "volumeSize", value: `${props.volumeSize}` },
-##      { key: "snapshotGen", value: `${props.snapshotGen}` },
-##      { key: "maintenance", value: `false` },
-##      { key: "discordChannelID", value: props.discordChannelID },
-##      { key: "route53domainName", value: props.route53domainName },
-##      { key: "route53hostZone", value: props.route53hostZone },
-
 stop_server() {
     sfrid=$(get_ssm_value sfrID)
     aws ec2 modify-spot-fleet-request --spot-fleet-request-id $sfrid --target-capacity 0
@@ -108,6 +101,7 @@ start_server() {
 
 
 start_game() {
+    [[ $(get_ssm_value maintenance) == true ]] && return
     docker-compose -f /var/lib/config/docker-compose.yml up -d
 }
 stop_game() {
