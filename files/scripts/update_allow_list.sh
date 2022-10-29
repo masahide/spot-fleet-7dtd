@@ -5,19 +5,18 @@ MIN=1440
 SETNAME=allow_list
 
 find $LISTFILE -mmin +$MIN -a -type f -exec rm -f {} \;
-[[ -f $LISTFILE ]] || \
-        curl -sL http://nami.jp/ipv4bycc/cidr.txt.gz \
-        |zcat \
-        |sed -n 's/^JP\t//p' \
-        >$LISTFILE
+[[ -f $LISTFILE ]] ||
+	curl -sL http://nami.jp/ipv4bycc/cidr.txt.gz |
+	zcat |
+	sed -n 's/^JP\t//p' \
+		>$LISTFILE
 
 /usr/sbin/ipset create $SETNAME hash:net
-/usr/sbin/ipset flush $SETNAME 2> /tmp/ipset.err.log
+/usr/sbin/ipset flush $SETNAME 2>/tmp/ipset.err.log
 
-while read line
-do
-        /usr/sbin/ipset add $SETNAME $line 2>> /tmp/ipset.err.log
-done < $LISTFILE
+while read line; do
+	/usr/sbin/ipset add $SETNAME $line 2>>/tmp/ipset.err.log
+done <$LISTFILE
 
 /sbin/iptables --flush INPUT
 /sbin/iptables -A INPUT -p ALL -s 127.0.0.1 -j ACCEPT
