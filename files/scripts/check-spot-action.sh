@@ -19,8 +19,8 @@ start_shutdown () {
 	exit
 }
 
-for i in {1..5}
+while :
 do	
-	check_action && ${SCRIPT_DIR}/backup.sh backup && start_shutdown
+	check_action && stop_backup_shutdown
 	sleep 10
 done

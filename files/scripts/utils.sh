@@ -2,10 +2,11 @@
 
 #. /var/tmp/aws_env
 
+
 # Get the latest snapshot
 _get_snapshot() {
   snapshots=$(aws ec2 describe-snapshots --owner-ids self \
-    --query 'Snapshots[?(Tags[?Key==`'$STACKNAME'`].Value)]')
+    --query 'Snapshots[?(Tags[?Key==`'$SERVERNAME'`].Value)]')
   latestsnapshot=$(echo $snapshots|jq 'max_by(.StartTime)|.SnapshotId' -r)
 
   #[[ "null" == "$latestsnapshot" ]] &&  return
@@ -19,7 +20,7 @@ _mount_snapshot() {
   volume=$(aws ec2 create-volume --volume-type gp3 \
     --availability-zone $AZ \
     --snapshot-id $snapshot \
-    --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value='${STACKNAME}-${time}'},{Key='$STACKNAME',Value=true}]')
+    --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value='${SERVERNAME}-${time}'},{Key='$SERVERNAME',Value=true}]')
   vid=$(echo "$volume" |jq -r '.VolumeId')
   echo $vid >/var/tmp/aws_vid
   echo volumeID: $vid
@@ -35,7 +36,7 @@ _create_new_volume() {
   createvolume=$(aws ec2 create-volume --volume-type gp3 \
     --size $VOLSIZE \
     --availability-zone $AZ \
-    --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value='${STACKNAME}-${time}'},{Key='$STACKNAME',Value=true}]')
+    --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value='${SERVERNAME}-${time}'},{Key='$SERVERNAME',Value=true}]')
   vid=$(echo "$createvolume" |jq -r '.VolumeId')
   echo $vid >/var/tmp/aws_vid
   echo volumeID: $vid
@@ -49,7 +50,7 @@ _create_new_volume() {
 # Delete old ones, leaving $SNAPSHOTGEN generations
 _delete_old_snapshot() {
   snapshots=$(aws ec2 describe-snapshots --owner-ids self \
-    --query 'Snapshots[?(Tags[?Key==`'$STACKNAME'`].Value)]')
+    --query 'Snapshots[?(Tags[?Key==`'$SERVERNAME'`].Value)]')
   rmsids=$(echo $snapshots|jq 'sort_by(.StartTime)|.[:-'$SNAPSHOTGEN']|.[].SnapshotId' -r)
   for sid in $rmsids;do
     aws ec2 delete-snapshot --snapshot-id $sid
@@ -57,6 +58,7 @@ _delete_old_snapshot() {
 }
 
 get_ssm_value() {
+    SSMPATH=/${PREFIX}/${SERVERNAME}
     aws ssm get-parameter --name "${SSMPATH}/${1}" --with-decryption|jq .Parameter.Value -r
 }
 
@@ -71,7 +73,7 @@ create_snapshot() {
   time=$(date "+%Y%m%d-%H%M%S")
   aws ec2 create-snapshot --volume-id $vid \
     --description "$Name backup $time" \
-    --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Name,Value='${STACKNAME}-${time}'},{Key='$STACKNAME',Value=true}]'
+    --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Name,Value='${SERVERNAME}-${time}'},{Key='$SERVERNAME',Value=true}]'
   sleep 2
   ## delete-volume
   aws ec2 wait volume-available --volume-ids $vid
@@ -90,11 +92,15 @@ mount_latest() {
 }
 
 stop_server() {
+    [[ -z $PREFIX  ]] && return 
+    [[ $SERVERNAME == "" ]] && SERVERNAME=$1
     sfrid=$(get_ssm_value sfrID)
     aws ec2 modify-spot-fleet-request --spot-fleet-request-id $sfrid --target-capacity 0
 }
 
 start_server() {
+    [[ -z $PREFIX  ]] && return 
+    [[ $SERVERNAME == "" ]] && SERVERNAME=$1
     sfrid=$(get_ssm_value sfrID)
     aws ec2 modify-spot-fleet-request --spot-fleet-request-id $sfrid --target-capacity 1
 }
@@ -121,7 +127,7 @@ stop_backup_shutdown() {
 
 
 upsert_domain () {
-    DOMAIN_NAME=${STACKNAME}.$(get_ssm_value route53domainName)
+    DOMAIN_NAME=${SERVERNAME}.$(get_ssm_value route53domainName)
     HOST_ZONE_ID=$(get_ssm_value route53hostZone)
 	RECORD='{
     "Comment": "UPSERT '${DOMAIN_NAME}'",

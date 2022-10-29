@@ -9,7 +9,7 @@ SCRIPT_DIR=$(cd $(dirname $0); pwd)
 
 ${SCRIPT_DIR}/expect/check_start.sh > /tmp/check_start.log
 
-DOMAIN_NAME=${STACKNAME}.$(get_ssm_value route53domainName)
+DOMAIN_NAME=${SERVERNAME}.$(get_ssm_value route53domainName)
 
 CONTENT="${DOMAIN_NAME} 起動完了\nサーバーの起動が完了しました。ゲームが始められます。\nURL: steam://connect/${DOMAIN_NAME}:26900"
 TITLE=""
