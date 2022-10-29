@@ -33,6 +33,7 @@ services:
       - /mnt/game/ServerFiles:/home/sdtdserver/serverfiles/ # Optional - serverfiles folder
       - /mnt/game/log:/home/sdtdserver/log/ # Optional - Logs folder
       - /mnt/game/backups:/home/sdtdserver/lgsm/backup/ # Optional - If BAKCUP=NO, backups folder
+    network_mode: "host"
     ports:
       - 26900:26900/tcp # Default game ports
       - 26900:26900/udp # Default game ports

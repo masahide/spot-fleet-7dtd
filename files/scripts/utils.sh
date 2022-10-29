@@ -169,10 +169,7 @@ post_discord_response() {
 
 	echo '{
   "content": "'${CONTENT}'",
-  "tts": false,
-  "embed": {
-  "title": "'${TITLE}'",
-  "description": "'${DESCRIPTION}'"
+  "tts": false
 }
 }' |
 		curl -X POST -H "Content-Type: application/json" \
