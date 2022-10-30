@@ -12,16 +12,17 @@ check_action() {
 }
 
 start_shutdown() {
-	CONTENT="spot action: stop"
-	TITLE="サーバーを停止します"
-	DESCRIPTION="amazonからスポットインスタンス中断通知を受信しました\n一旦サーバーを安全に停止します\n停止後にDiscordから再起動してください"
+	CONTENT="amazonからスポットインスタンス中断通知を受信しました\n10秒後に${SERVERNAME}サーバーを安全に停止します\n停止後にDiscordから再起動してください"
 	post_discord
-	sleep 10
+  sleep 10
 	stop_backup_shutdown
+	CONTENT="${SERVERNAME}サーバーを停止しました"
+	post_discord
+	/usr/sbin/shutdown -h now
 	exit
 }
 
 while :; do
-	check_action && stop_backup_shutdown
+	check_action && start_shutdown
 	sleep 10
 done

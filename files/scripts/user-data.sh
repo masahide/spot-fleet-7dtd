@@ -46,6 +46,7 @@ mount_latest >>/var/tmp/userdata_mount.log 2>&1
 cp /var/lib/config/cron_d-file /etc/cron.d/
 
 /var/lib/scripts/check-spot-action.sh &
+mv /mnt/game/log/console/sdtdserver-console.log /mnt/game/log/console/sdtdserver-console.log.old
 /var/lib/scripts/send_start &
 
 start_game
