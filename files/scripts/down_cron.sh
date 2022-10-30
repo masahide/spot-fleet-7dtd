@@ -37,7 +37,7 @@ while :; do
 	break
 done
 [[ $(get_ssm_value maintenance) == true ]] && exit 0
-CONTENT="サーバーを停止しました"
+CONTENT="${SERVERNAME}サーバーを停止しました"
 post_discord
 
 stop_backup_shutdown

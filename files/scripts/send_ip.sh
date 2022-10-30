@@ -8,7 +8,5 @@ SCRIPT_DIR=$(
 . ${SCRIPT_DIR}/utils.sh
 
 DOMAIN_NAME=${SERVERNAME}.$(get_ssm_value route53domainName)
-CONTENT="${DOMAIN_NAME} のIPは ${IPADDRESS} になりました"
-TITLE="${DOMAIN_NAME} (${IPADDRESS})"
-DESCRIPTION="7days to dieの起動処理を始めました. しばらくお待ちください."
+CONTENT="${DOMAIN_NAME} のIPは ${IPADDRESS} になりました\n${SERVERNAME}の起動処理を始めました. しばらくお待ちください."
 post_discord
