@@ -46,7 +46,7 @@ mount_latest >>/var/tmp/userdata_mount.log 2>&1
 
 mv /mnt/game/log/console/sdtdserver-console.log /mnt/game/log/console/sdtdserver-console.log.old
 /var/lib/scripts/check-spot-action.sh &
-/var/lib/scripts/send_start &
+/var/lib/scripts/send_start.sh &
 /var/lib/scripts/down_cron.sh &
 
 start_game

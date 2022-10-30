@@ -24,18 +24,34 @@ const baseStack = new spot7dtdBaseStack(app, `${prefix}Base`, {
 });
 cdk.Tags.of(baseStack).add("stackName", baseStack.stackName);
 
-const pev01 = new spot7dtdStack(
-  app,
-  `sdtdPVE01`, // server name
+[
   {
-    env: env,
-    prefix: prefix,
-    base: baseStack.base,
-    snapshotGen: 3, // number of snapshot generations
-    volumeSize: 20, // EBS volume size (GB)
-    discordChannelID: getEnv("DISCORD_CHANNELID"),
-    route53domainName: getEnv("DNS_NAME1"),
-    route53hostZone: getEnv("ROUTE53_ZONEID"),
-  }
-);
-cdk.Tags.of(pev01).add("stackName", pev01.stackName);
+    serverName: `sdtdPVE01`, // server name
+    props: {
+      env: env,
+      prefix: prefix,
+      base: baseStack.base,
+      snapshotGen: 3, // number of snapshot generations
+      volumeSize: 20, // EBS volume size (GB)
+      discordChannelID: getEnv("DISCORD_CHANNELID"),
+      route53domainName: getEnv("ROUTE53_ZONE_DNS_NAME"),
+      route53hostZone: getEnv("ROUTE53_ZONEID"),
+    },
+  },
+  {
+    serverName: `sdtdPVE02`, // server name
+    props: {
+      env: env,
+      prefix: prefix,
+      base: baseStack.base,
+      snapshotGen: 3, // number of snapshot generations
+      volumeSize: 20, // EBS volume size (GB)
+      discordChannelID: getEnv("DISCORD_CHANNELID"),
+      route53domainName: getEnv("ROUTE53_ZONE_DNS_NAME"),
+      route53hostZone: getEnv("ROUTE53_ZONEID"),
+    },
+  },
+].map((conf) => {
+  const stack = new spot7dtdStack(app, conf.serverName, conf.props);
+  cdk.Tags.of(stack).add("stackName", stack.stackName);
+});

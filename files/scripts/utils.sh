@@ -118,6 +118,20 @@ stop_game() {
 	docker-compose -f /var/lib/config/docker-compose.yml down
 }
 
+mainte_in() {
+	[[ -z $PREFIX ]] && return
+	[[ $SERVERNAME == "" ]] && SERVERNAME=$1
+	[[ $SERVERNAME == "" ]] && return
+  aws ssm put-parameter --name "/${PREFIX}/${SERVERNAME}/maintenance" --type "String" --value "true" --overwrite
+}
+
+mainte_out() {
+	[[ -z $PREFIX ]] && return
+	[[ $SERVERNAME == "" ]] && SERVERNAME=$1
+	[[ $SERVERNAME == "" ]] && return
+  aws ssm put-parameter --name "/${PREFIX}/${SERVERNAME}/maintenance" --type "String" --value "false" --overwrite
+}
+
 stop_backup_shutdown() {
 	stop_game
 	sleep 3
