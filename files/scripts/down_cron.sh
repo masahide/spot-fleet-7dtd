@@ -13,7 +13,9 @@ FILE=/tmp/players
 
 players() {
 	${SCRIPT_DIR}/expect/listplayer.sh >$FILE
-	cat $FILE | grep "in the game" | grep -Eo "[0-9]{1,4}"
+	user=$(cat $FILE | grep "in the game" | grep -Eo "[0-9]{1,4}")
+	[[ $user == "" ]] && user=99
+	echo $user
 }
 
 
