@@ -26,6 +26,6 @@ sleep $TIME
 [[ "$(players)" -eq "0" ]] || exit 0
 
 CONTENT="サーバーを停止しました"
-post_discord_response
+post_discord
 
 stop_backup_shutdown
