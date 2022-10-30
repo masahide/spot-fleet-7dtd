@@ -20,9 +20,7 @@ post() {
 }
 
 while :; do
-	echo start
 	check_action && break
-	echo hoge
 	sleep 2
 done
 post
