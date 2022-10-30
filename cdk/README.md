@@ -19,7 +19,8 @@ vim .env
 SERVER=sdtdPVE01
 
 # set discord token to ssm param
-aws ssm put-parameter --name "/${PREFIX}/${SERVER}/discordBotToken" --type "SecureString" --value "${DISCORD_TOKEN}"
+aws ssm put-parameter --name "/${PREFIX}/discordBotToken" --type "SecureString" --value "${DISCORD_TOKEN}"
+aws ssm put-parameter --name "/${PREFIX}/discordPubKey" --type "String" --value "${DISCORD_PUBKEY}"
 ```
 
 ## build & deploy

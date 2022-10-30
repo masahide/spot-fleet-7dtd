@@ -1,6 +1,16 @@
 import * as cdk from "aws-cdk-lib";
-import { aws_iam as iam, aws_ec2 as ec2, Tags, StackProps } from "aws-cdk-lib";
+import {
+  aws_iam as iam,
+  aws_lambda as lambda,
+  aws_ec2 as ec2,
+  Tags,
+  StackProps,
+} from "aws-cdk-lib";
+import * as apigatewayv2 from "@aws-cdk/aws-apigatewayv2-alpha";
 import { Construct } from "constructs";
+import { GoFunction } from "@aws-cdk/aws-lambda-go-alpha";
+import { HttpLambdaIntegration } from "@aws-cdk/aws-apigatewayv2-integrations-alpha";
+
 // import { readFileSync } from "fs";
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
@@ -21,6 +31,7 @@ export interface spot7dtdBase {
 
 export class spot7dtdBaseStack extends cdk.Stack {
   public readonly base: spot7dtdBase;
+  public readonly apiURL: string;
 
   constructor(scope: Construct, id: string, props: spot7dtdBaseprops) {
     super(scope, id, props);
@@ -87,24 +98,14 @@ export class spot7dtdBaseStack extends cdk.Stack {
           effect: iam.Effect.ALLOW,
           actions: [
             "kms:Decrypt",
-            "sqs:ReceiveMessage",
-            "sqs:SendMessage",
-            "sqs:DeleteMessage",
-            "sqs:ChangeMessageVisibility",
-            "dynamodb:PutItem",
-            "dynamodb:GetItem",
-            "dynamodb:DeleteItem",
-            "dynamodb:UpdateItem",
             "route53:ChangeResourceRecordSets",
             "ssm:GetParametersByPath",
             "ssm:GetParameters",
             "ssm:GetParameter",
           ],
           resources: [
-            "arn:aws:sqs:*:*:DiscordBotStack-Queue*",
             "arn:aws:kms:*:*:key/CMK",
             `arn:aws:ssm:*:*:parameter/${props.prefix}/*`,
-            "arn:aws:dynamodb:*:*:table/DiscordBotStack-Table*",
             "arn:aws:route53:::hostedzone/*",
           ],
         }),
@@ -136,6 +137,37 @@ export class spot7dtdBaseStack extends cdk.Stack {
             "arn:aws:ec2:*:*:spot-fleet-request/*",
             "arn:aws:ec2:*:*:subnet/*",
           ],
+        }),
+      ],
+    });
+    const lambdaPolicy = new iam.Policy(this, `lambdaPolicy`, {
+      statements: [
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: [
+            "kms:Decrypt",
+            "ssm:GetParametersByPath",
+            "ssm:GetParameters",
+            "ssm:GetParameter",
+          ],
+          resources: [
+            "arn:aws:kms:*:*:key/CMK",
+            `arn:aws:ssm:*:*:parameter/${props.prefix}/*`,
+          ],
+        }),
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: ["ec2:ModifySpotFleetRequest"],
+          resources: [
+            "arn:aws:ec2:*:*:launch-template/*",
+            "arn:aws:ec2:*:*:spot-fleet-request/*",
+            "arn:aws:ec2:*:*:subnet/*",
+          ],
+        }),
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: ["ec2:DescribeSpotFleetRequests"],
+          resources: ["*"],
         }),
       ],
     });
@@ -179,5 +211,44 @@ export class spot7dtdBaseStack extends cdk.Stack {
         return d.subnetId;
       }),
     };
+
+    const commandFunc = new GoFunction(this, "commands", {
+      entry: "../functions/commands",
+      runtime: lambda.Runtime.GO_1_X,
+      memorySize: 128,
+      timeout: cdk.Duration.seconds(300),
+      environment: {
+        PREFIX: props.prefix,
+      },
+    });
+    const handler = new GoFunction(this, "handler", {
+      entry: "../functions/discordbot",
+      runtime: lambda.Runtime.GO_1_X,
+      memorySize: 128,
+      timeout: cdk.Duration.seconds(300),
+      environment: {
+        PREFIX: props.prefix,
+        CMDFUNC: commandFunc.functionArn,
+      },
+    });
+    const httpApi = new apigatewayv2.HttpApi(this, "HttpApi");
+
+    httpApi.addRoutes({
+      path: "/",
+      methods: [apigatewayv2.HttpMethod.GET, apigatewayv2.HttpMethod.POST],
+      integration: new HttpLambdaIntegration("handler", handler),
+    });
+    if (handler.role == undefined) {
+      return;
+    }
+    handler.role.attachInlinePolicy(lambdaPolicy);
+    if (commandFunc.role == undefined) {
+      return;
+    }
+    commandFunc.role.attachInlinePolicy(lambdaPolicy);
+    commandFunc.grantInvoke(handler);
+
+    this.apiURL = httpApi.url || "";
+    new cdk.CfnOutput(this, "ApiUrlOutput", { value: httpApi.url || "" });
   }
 }

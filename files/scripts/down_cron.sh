@@ -16,13 +16,13 @@ players() {
 	cat $FILE | grep "in the game" | grep -Eo "[0-9]{1,4}"
 }
 
-[[ $(get_ssm_value maintenance) -eq true ]] && return
+[[ $(get_ssm_value maintenance) == true ]] && return
 [[ "$(players)" -eq "0" ]] || exit 0
 
 echo sleep $TIME sec...
 sleep $TIME
 
-[[ $(get_ssm_value maintenance) -eq true ]] && return
+[[ $(get_ssm_value maintenance) == true ]] && return
 [[ "$(players)" -eq "0" ]] || exit 0
 
 CONTENT="サーバーを停止しました"

@@ -61,6 +61,10 @@ get_ssm_value() {
 	aws ssm get-parameter --name "${SSMPATH}/${1}" --with-decryption | jq .Parameter.Value -r
 }
 
+get_ssm_root_value() {
+	aws ssm get-parameter --name "$/${1}" --with-decryption | jq .Parameter.Value -r
+}
+
 # Unmount to create a snapshot and delete volume
 create_snapshot() {
 	vid=$(cat /var/tmp/aws_vid)
@@ -146,7 +150,7 @@ upsert_domain() {
 post_discord() {
 	[[ $(get_ssm_value maintenance) == true ]] && return
 	DISCORD_CHANNEL_ID=$(get_ssm_value discordChannelID)
-	BOT_TOKEN=$(get_ssm_value discordBotToken)
+	BOT_TOKEN=$(get_ssm_root_value /${PREFIX}/discordBotToken)
 	URL=https://discordapp.com/api/channels/${DISCORD_CHANNEL_ID}/messages
 
 	echo '{
@@ -162,7 +166,7 @@ post_discord() {
 post_discord_response() {
 	[[ $(get_ssm_value maintenance) == true ]] && return
 	DISCORD_CHANNEL_ID=$(get_ssm_value discordChannelID)
-	BOT_TOKEN=$(get_ssm_value discordBotToken)
+	BOT_TOKEN=$(get_ssm_root_value /${PREFIX}/discordBotToken)
 	json=/tmp/7dtd_executer.data.json
 	[[ -f $json ]] && [[ $(date "+%s") -le $(jq -r '.["ttl"]' $json) ]] && URL=$(jq -r '.["url"]' $json)
 	[[ -z $URL ]] && URL=https://discordapp.com/api/channels/${DISCORD_CHANNEL_ID}/messages
