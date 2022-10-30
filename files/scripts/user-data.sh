@@ -43,10 +43,10 @@ upsert_domain
 /var/lib/scripts/send_ip.sh
 mount_latest >>/var/tmp/userdata_mount.log 2>&1
 /var/lib/scripts/update_allow_list.sh >>/var/tmp/update_allow_list.log 2>&1
-cp /var/lib/config/cron_d-file /etc/cron.d/
 
-/var/lib/scripts/check-spot-action.sh &
 mv /mnt/game/log/console/sdtdserver-console.log /mnt/game/log/console/sdtdserver-console.log.old
-/var/lib/scripts/send_start.sh &
+/var/lib/scripts/check-spot-action.sh &
+/var/lib/scripts/send_start &
+/var/lib/scripts/down_cron.sh &
 
 start_game

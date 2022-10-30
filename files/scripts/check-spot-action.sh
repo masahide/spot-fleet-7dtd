@@ -12,7 +12,7 @@ check_action() {
 }
 
 start_shutdown() {
-	CONTENT="amazonからスポットインスタンス中断通知を受信しました\n10秒後に${SERVERNAME}サーバーを安全に停止します\n停止後にDiscordから再起動してください"
+	CONTENT="amazonからスポットインスタンス中断通知を受信しました\n10秒後に${SERVERNAME}サーバーを安全に停止します"
 	post_discord
   sleep 10
 	stop_backup_shutdown
