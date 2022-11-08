@@ -1,6 +1,7 @@
 #!/bin/bash
 
-TIME=300
+STARTWEAIT=1800
+WAIT=300
 
 . /var/tmp/aws_env
 SCRIPT_DIR=$(
@@ -23,16 +24,16 @@ check_action() {
 	[[ "$(players)" -eq "0" ]]
 }
 
-sleep $TIME
+sleep $STARTWEAIT
 
 while :; do
-	sleep $TIME
+	sleep $WAIT
 	check_action || continue
 	echo 1..
-	sleep $TIME
+	sleep $WAIT
 	check_action  || continue
 	echo 2..
-	sleep $TIME
+	sleep $WAIT
 	check_action  || continue
 	break
 done

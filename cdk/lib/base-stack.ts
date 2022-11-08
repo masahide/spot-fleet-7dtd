@@ -149,6 +149,7 @@ export class spot7dtdBaseStack extends cdk.Stack {
             "ssm:GetParametersByPath",
             "ssm:GetParameters",
             "ssm:GetParameter",
+            "ssm:PutParameter",
           ],
           resources: [
             "arn:aws:kms:*:*:key/CMK",
