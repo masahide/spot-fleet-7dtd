@@ -17,10 +17,6 @@ export interface spot7dtdrops extends StackProps {
   base: spot7dtdBase;
 }
 
-const getString = (s: string | undefined, def: string): string => {
-  return s === undefined ? def : s;
-};
-
 export class spot7dtdStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: spot7dtdrops) {
     super(scope, id, props);
@@ -62,7 +58,7 @@ export class spot7dtdStack extends cdk.Stack {
         launchTemplateConfigs: [
           {
             launchTemplateSpecification: {
-              launchTemplateId: getString(template.launchTemplateId, ``),
+              launchTemplateId: template.launchTemplateId || "",
               version: template.latestVersionNumber,
             },
             overrides: [
@@ -106,10 +102,10 @@ export class spot7dtdStack extends cdk.Stack {
       };
     });
 
-    for (const i in params) {
-      new CfnOutput(this, `key${params[i].kv.key}`, {
-        value: params[i].param.stringValue,
+    params.map((param) => {
+      new CfnOutput(this, `key${param.kv.key}`, {
+        value: param.param.stringValue,
       });
-    }
+    });
   }
 }
