@@ -15,8 +15,6 @@ vim .env
 # load .env
 . .env
 
-# server name
-SERVER=sdtdPVE01
 
 # set discord token to ssm param
 aws ssm put-parameter --name "/${PREFIX}/discordBotToken" --type "SecureString" --value "${DISCORD_TOKEN}"
