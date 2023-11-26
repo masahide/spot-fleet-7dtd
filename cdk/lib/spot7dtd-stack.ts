@@ -39,7 +39,7 @@ export class spot7dtdStack extends cdk.Stack {
       userData: multipartUserData,
       keyName: props.base.keyPairName,
       machineImage: ec2.MachineImage.fromSsmParameter(
-        "/aws/service/ami-amazon-linux-latest/al2022-ami-kernel-default-x86_64"
+        "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
       ),
       launchTemplateName: launchTemplateName,
       securityGroup: props.base.securityGroup,

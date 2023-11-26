@@ -15,7 +15,7 @@ check_action() {
 
 post() {
 	DOMAIN_NAME=${SERVERNAME}.$(get_ssm_value route53domainName)
-	CONTENT="${DOMAIN_NAME} 起動完了\nサーバーの起動が完了しました。ゲームが始められます。\nURL: https://sc.suzu.me.uk/${DOMAIN_NAME}"
+	CONTENT="${DOMAIN_NAME} 起動完了 サーバーアドレス ${IPADDRESS}:26900\nサーバーの起動が完了しました。ゲームが始められます。\nURL: https://sc.suzu.me.uk/${IPADDRESS}:26900"
 	post_discord
 }
 
