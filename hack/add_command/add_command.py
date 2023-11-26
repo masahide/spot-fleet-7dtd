@@ -26,6 +26,10 @@ data = {
             "name": "pve02",
             "value": "sdtdPVE02"
             },
+          {
+            "name": "pve03",
+            "value": "sdtdPVE03"
+            },
           ]
         },
       ]

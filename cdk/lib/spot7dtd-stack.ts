@@ -27,7 +27,7 @@ export class spot7dtdStack extends cdk.Stack {
     setupCommands.addCommands(
       `aws s3 cp s3://${asset.s3BucketName}/${asset.s3ObjectKey} /tmp/files.zip >> /var/tmp/setup`,
       `unzip -d /var/lib/ /tmp/files.zip >>/var/tmp/setup`,
-      `bash /var/lib/scripts/user-data.sh ${props.prefix} ${this.stackName} ${props.volumeSize} ${props.snapshotGen}`
+      `bash /var/lib/scripts/user-data.sh ${props.prefix} ${this.stackName} ${props.volumeSize} ${props.snapshotGen}`,
     );
 
     const multipartUserData = new ec2.MultipartUserData();
@@ -39,7 +39,7 @@ export class spot7dtdStack extends cdk.Stack {
       userData: multipartUserData,
       keyName: props.base.keyPairName,
       machineImage: ec2.MachineImage.fromSsmParameter(
-        "/aws/service/ami-amazon-linux-latest/al2022-ami-kernel-default-x86_64"
+        "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64",
       ),
       launchTemplateName: launchTemplateName,
       securityGroup: props.base.securityGroup,

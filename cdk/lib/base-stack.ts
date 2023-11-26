@@ -60,33 +60,33 @@ export class spot7dtdBaseStack extends cdk.Stack {
     securityGroup.addIngressRule(
       ec2.Peer.ipv4(props.myIP),
       ec2.Port.tcp(22),
-      "ssh access from home"
+      "ssh access from home",
     );
     securityGroup.addIngressRule(
       ec2.Peer.anyIpv4(),
       ec2.Port.udpRange(26900, 26902),
-      "7dtd port"
+      "7dtd port",
     );
     securityGroup.addIngressRule(
       ec2.Peer.anyIpv4(),
       ec2.Port.tcpRange(26900, 26902),
-      "7dtd port"
+      "7dtd port",
     );
     securityGroup.addIngressRule(
       ec2.Peer.anyIpv4(),
       ec2.Port.tcp(28082),
-      "LinuxGSM"
+      "LinuxGSM",
     );
     securityGroup.addIngressRule(
       ec2.Peer.anyIpv4(),
       ec2.Port.allIcmp(),
-      "icmp"
+      "icmp",
     );
     securityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(80), "http");
     securityGroup.addIngressRule(
       ec2.Peer.anyIpv4(),
       ec2.Port.tcp(443),
-      "https"
+      "https",
     );
     Tags.of(securityGroup).add("Name", `${this.stackName}SG`);
 
@@ -176,7 +176,7 @@ export class spot7dtdBaseStack extends cdk.Stack {
     const fleetSpotRole = new iam.Role(this, "spotfleetRole", {
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName(
-          "service-role/AmazonEC2SpotFleetTaggingRole"
+          "service-role/AmazonEC2SpotFleetTaggingRole",
         ),
       ],
       assumedBy: new iam.ServicePrincipal("spotfleet.amazonaws.com"),
@@ -188,7 +188,7 @@ export class spot7dtdBaseStack extends cdk.Stack {
         iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonS3FullAccess"),
         iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonEC2ReadOnlyAccess"),
         iam.ManagedPolicy.fromAwsManagedPolicyName(
-          "service-role/AmazonEC2RoleforSSM"
+          "service-role/AmazonEC2RoleforSSM",
         ),
         policy,
       ],
